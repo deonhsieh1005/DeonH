@@ -450,6 +450,51 @@ a { text-decoration: none; }
 .archive-list a:hover { color: var(--accent); }
 .archive-list a:hover::after { color: var(--accent); }
 
+/* ---- Mobile ---- */
+@media (max-width: 640px) {
+  .desktop {
+    padding: 0 14px 40px;
+  }
+
+  .hero {
+    padding: 36px 0 24px;
+  }
+
+  .greeting {
+    font-size: 2.4em;
+    letter-spacing: -1px;
+  }
+
+  .icon-nav {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+
+  .nav-tile {
+    padding: 16px 10px;
+    min-width: unset;
+    border-radius: 14px;
+  }
+
+  .nav-tile i {
+    font-size: 1.3em;
+  }
+
+  .desktop-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .window-body {
+    padding: 14px;
+  }
+
+  .archive-list {
+    columns: 2;
+  }
+}
+
 /* ---- Footer ---- */
 .site-footer {
   text-align: center;
