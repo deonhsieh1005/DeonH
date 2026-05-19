@@ -140,37 +140,67 @@
     var sx = W * 0.74, sy = H * 0.20;
     var r  = Math.min(W, H) * 0.095;
 
-    /* wide ambient glow */
-    var glow = ctx.createRadialGradient(sx, sy, r * 0.3, sx, sy, r * 4.0);
-    glow.addColorStop(0,    'rgba(255,230,110,0.32)');
-    glow.addColorStop(0.45, 'rgba(255,210, 90,0.11)');
-    glow.addColorStop(1,    'rgba(255,190, 70,0)');
+    /* soft ambient glow */
+    var glow = ctx.createRadialGradient(sx, sy, r * 0.4, sx, sy, r * 3.0);
+    glow.addColorStop(0,   'rgba(235,205,40,0.22)');
+    glow.addColorStop(1,   'rgba(235,205,40,0)');
     ctx.fillStyle = glow;
-    ctx.beginPath(); ctx.arc(sx, sy, r * 4.0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx, sy, r * 3.0, 0, Math.PI * 2); ctx.fill();
 
-    /* rotating rays */
-    ctx.save();
-    ctx.translate(sx, sy);
-    ctx.rotate(t * 0.003);
-    for (var i = 0; i < 14; i++) {
-      var a = (i / 14) * Math.PI * 2;
-      ctx.strokeStyle = 'rgba(255,220,120,0.48)';
-      ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    /* crayon-blob rays */
+    ctx.save(); ctx.translate(sx, sy);
+    ctx.fillStyle = '#EDD030';
+    for (var ri = 0; ri < 12; ri++) {
+      var ra = (ri / 12) * Math.PI * 2 + Math.sin(ri * 2.3) * 0.05;
+      ctx.save(); ctx.rotate(ra);
+      var rd1 = r * 1.20, rd2 = r * 1.65;
+      var hw1 = r * 0.075, hw2 = r * 0.038;
       ctx.beginPath();
-      ctx.moveTo(Math.cos(a) * (r + 7),  Math.sin(a) * (r + 7));
-      ctx.lineTo(Math.cos(a) * (r + 30), Math.sin(a) * (r + 30));
-      ctx.stroke();
+      ctx.moveTo(-hw1, -rd1);
+      ctx.bezierCurveTo(-hw1*1.2, -(rd1+(rd2-rd1)*0.38), -hw2*1.1, -rd2+r*0.04, 0, -rd2);
+      ctx.bezierCurveTo( hw2*1.1, -rd2+r*0.04,  hw1*1.2, -(rd1+(rd2-rd1)*0.38), hw1, -rd1);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
     }
     ctx.restore();
 
-    /* body */
-    var dg = ctx.createRadialGradient(sx - r * 0.22, sy - r * 0.22, r * 0.04, sx, sy, r);
-    dg.addColorStop(0,   '#FFFEF2');
-    dg.addColorStop(0.25,'#FFF5B0');
-    dg.addColorStop(0.62,'#FFE050');
-    dg.addColorStop(1,   '#F0C028');
-    ctx.fillStyle = dg;
-    ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill();
+    /* wobbly body outline */
+    function sunPath() {
+      var pts = 48;
+      ctx.beginPath();
+      for (var pi = 0; pi <= pts; pi++) {
+        var pa = (pi / pts) * Math.PI * 2;
+        var wob = 1 + 0.022 * Math.sin(pa*6+1.1)
+                    + 0.014 * Math.sin(pa*11+2.3)
+                    + 0.008 * Math.sin(pa*17+0.9);
+        var px = sx + r * wob * Math.cos(pa);
+        var py = sy + r * wob * Math.sin(pa);
+        if (pi === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+    }
+
+    /* flat fill */
+    sunPath();
+    ctx.fillStyle = '#DEBA1A';
+    ctx.fill();
+
+    /* horizontal crayon texture strokes */
+    ctx.save();
+    sunPath(); ctx.clip();
+    for (var yi = 0; yi < 30; yi++) {
+      var yp  = sy - r * 0.88 + yi * (r * 1.76 / 29);
+      var xsh = Math.sin(yi * 0.68 + 1.2) * r * 0.07;
+      var alp = 0.08 + Math.abs(Math.sin(yi * 0.54)) * 0.07;
+      ctx.strokeStyle = 'rgba(185,145,5,' + alp + ')';
+      ctx.lineWidth   = 0.9 + Math.abs(Math.sin(yi * 1.1)) * 0.9;
+      ctx.lineCap     = 'round';
+      ctx.beginPath();
+      ctx.moveTo(sx - r*0.90 + xsh, yp + Math.sin(yi*0.42)*1.5);
+      ctx.lineTo(sx + r*0.90 + xsh, yp + Math.sin(yi*0.42+0.5)*1.5);
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   function drawCloud(cx, cy, w) {
