@@ -204,50 +204,47 @@
   }
 
   function drawCloud(cx, cy, w) {
-    var h = w * 0.55;
-    var bd = [
-      /* back row */
-      [cx + w*0.06, cy + h*0.38, h*0.44],
-      [cx + w*0.28, cy + h*0.30, h*0.50],
-      [cx + w*0.54, cy + h*0.28, h*0.52],
-      [cx + w*0.80, cy + h*0.34, h*0.44],
-      /* front row */
-      [cx + w*0.18, cy + h*0.04, h*0.54],
-      [cx + w*0.46, cy - h*0.06, h*0.64],
-      [cx + w*0.74, cy + h*0.06, h*0.52],
-    ];
-    function arcs() { bd.forEach(function(b){ ctx.arc(b[0],b[1],b[2],0,Math.PI*2); }); }
+    var h  = w * 0.50;
+    var bx = cx;
+    var by = cy + h * 0.50;
 
-    /* 1. white fill */
-    ctx.beginPath(); arcs();
-    ctx.fillStyle = 'rgba(255,255,253,0.97)';
-    ctx.fill();
-
-    /* 2. diagonal hatching on shadow underside */
-    ctx.save();
-    ctx.beginPath(); arcs(); ctx.clip();
-    ctx.strokeStyle = 'rgba(44,34,24,0.18)';
-    ctx.lineWidth = 0.9; ctx.lineCap = 'butt';
-    var dy = h * 0.72;
-    for (var hx = cx - dy; hx < cx + w + dy; hx += 5) {
+    function path() {
       ctx.beginPath();
-      ctx.moveTo(hx,      cy + h*0.10);
-      ctx.lineTo(hx + dy, cy + h*0.10 + dy);
-      ctx.stroke();
+      ctx.moveTo(bx + w*0.02, by);
+      ctx.lineTo(bx + w*0.98, by);
+      /* right side up */
+      ctx.bezierCurveTo(bx+w*1.02, by,        bx+w*1.02, by-h*0.24, bx+w*0.93, by-h*0.30);
+      /* right bump */
+      ctx.bezierCurveTo(bx+w*1.00, by-h*0.55, bx+w*0.82, by-h*0.62, bx+w*0.74, by-h*0.40);
+      /* valley → center */
+      ctx.bezierCurveTo(bx+w*0.78, by-h*0.82, bx+w*0.62, by-h*0.88, bx+w*0.56, by-h*0.62);
+      /* center bump (tallest) */
+      ctx.bezierCurveTo(bx+w*0.60, by-h*1.10, bx+w*0.36, by-h*1.10, bx+w*0.38, by-h*0.66);
+      /* valley → left */
+      ctx.bezierCurveTo(bx+w*0.30, by-h*0.90, bx+w*0.16, by-h*0.80, bx+w*0.18, by-h*0.52);
+      /* left side down */
+      ctx.bezierCurveTo(bx+w*0.06, by-h*0.56, bx-w*0.01, by-h*0.35, bx+w*0.02, by-h*0.18);
+      ctx.bezierCurveTo(bx-w*0.01, by-h*0.14, bx-w*0.01, by, bx+w*0.02, by);
+      ctx.closePath();
     }
+
+    /* soft drop shadow */
+    ctx.save();
+    ctx.translate(0, h * 0.10);
+    path();
+    var sg = ctx.createLinearGradient(cx + w*0.5, by - h*0.2, cx + w*0.5, by + h*0.12);
+    sg.addColorStop(0, 'rgba(150,165,200,0)');
+    sg.addColorStop(1, 'rgba(135,155,195,0.22)');
+    ctx.fillStyle = sg; ctx.fill();
     ctx.restore();
 
-    /* 3. outline each bump (back→front so front fills cover interior arcs) */
-    bd.forEach(function(b, i) {
-      if (i >= 4) {
-        ctx.beginPath(); ctx.arc(b[0],b[1],b[2],0,Math.PI*2);
-        ctx.fillStyle = 'rgba(255,255,253,0.97)'; ctx.fill();
-      }
-      ctx.beginPath(); ctx.arc(b[0],b[1],b[2],0,Math.PI*2);
-      ctx.strokeStyle = 'rgba(36,28,20,0.62)';
-      ctx.lineWidth = 1.8; ctx.lineJoin = 'round';
-      ctx.stroke();
-    });
+    /* main fill: bright top → blue-grey underside */
+    path();
+    var g = ctx.createLinearGradient(cx + w*0.5, by - h*1.12, cx + w*0.5, by);
+    g.addColorStop(0,    'rgba(255,255,255,0.97)');
+    g.addColorStop(0.55, 'rgba(244,247,255,0.95)');
+    g.addColorStop(1,    'rgba(212,220,238,0.88)');
+    ctx.fillStyle = g; ctx.fill();
   }
 
   function drawClouds() {
