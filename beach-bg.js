@@ -6,9 +6,12 @@
 
   /* ---- light mode data ---- */
   var clouds = [
-    { xRel: 0.10, yFrac: 0.12, w: 135, speed: 0.20 },
-    { xRel: 0.45, yFrac: 0.08, w:  98, speed: 0.13 },
-    { xRel: 0.75, yFrac: 0.14, w: 158, speed: 0.25 },
+    { xRel: 0.04, yFrac: 0.10, w: 148 },
+    { xRel: 0.30, yFrac: 0.06, w: 112 },
+    { xRel: 0.56, yFrac: 0.13, w: 170 },
+    { xRel: 0.76, yFrac: 0.07, w: 130 },
+    { xRel: 0.16, yFrac: 0.28, w:  88 },
+    { xRel: 0.68, yFrac: 0.26, w: 104 },
   ];
 
   var MOTE_COLORS = [
@@ -171,23 +174,50 @@
   }
 
   function drawCloud(cx, cy, w) {
-    var h = w * 0.50;
-    ctx.fillStyle = 'rgba(255,254,250,0.78)';
-    ctx.beginPath();
-    ctx.arc(cx + w * 0.05, cy + h * 0.18, h * 0.50, 0, Math.PI * 2);
-    ctx.arc(cx + w * 0.22, cy + h * 0.10, h * 0.56, 0, Math.PI * 2);
-    ctx.arc(cx + w * 0.42, cy + h * 0.07, h * 0.60, 0, Math.PI * 2);
-    ctx.arc(cx + w * 0.62, cy + h * 0.10, h * 0.57, 0, Math.PI * 2);
-    ctx.arc(cx + w * 0.80, cy + h * 0.16, h * 0.51, 0, Math.PI * 2);
-    ctx.arc(cx + w * 0.94, cy + h * 0.24, h * 0.44, 0, Math.PI * 2);
-    ctx.arc(cx + w * 0.15, cy - h * 0.14, h * 0.55, 0, Math.PI * 2);
-    ctx.arc(cx + w * 0.35, cy - h * 0.26, h * 0.62, 0, Math.PI * 2);
-    ctx.arc(cx + w * 0.55, cy - h * 0.23, h * 0.60, 0, Math.PI * 2);
-    ctx.arc(cx + w * 0.73, cy - h * 0.13, h * 0.52, 0, Math.PI * 2);
-    ctx.arc(cx + w * 0.28, cy - h * 0.43, h * 0.50, 0, Math.PI * 2);
-    ctx.arc(cx + w * 0.48, cy - h * 0.49, h * 0.55, 0, Math.PI * 2);
-    ctx.arc(cx + w * 0.64, cy - h * 0.39, h * 0.46, 0, Math.PI * 2);
+    var h = w * 0.55;
+    var bd = [
+      /* back row */
+      [cx + w*0.06, cy + h*0.38, h*0.44],
+      [cx + w*0.28, cy + h*0.30, h*0.50],
+      [cx + w*0.54, cy + h*0.28, h*0.52],
+      [cx + w*0.80, cy + h*0.34, h*0.44],
+      /* front row */
+      [cx + w*0.18, cy + h*0.04, h*0.54],
+      [cx + w*0.46, cy - h*0.06, h*0.64],
+      [cx + w*0.74, cy + h*0.06, h*0.52],
+    ];
+    function arcs() { bd.forEach(function(b){ ctx.arc(b[0],b[1],b[2],0,Math.PI*2); }); }
+
+    /* 1. white fill */
+    ctx.beginPath(); arcs();
+    ctx.fillStyle = 'rgba(255,255,253,0.97)';
     ctx.fill();
+
+    /* 2. diagonal hatching on shadow underside */
+    ctx.save();
+    ctx.beginPath(); arcs(); ctx.clip();
+    ctx.strokeStyle = 'rgba(44,34,24,0.18)';
+    ctx.lineWidth = 0.9; ctx.lineCap = 'butt';
+    var dy = h * 0.72;
+    for (var hx = cx - dy; hx < cx + w + dy; hx += 5) {
+      ctx.beginPath();
+      ctx.moveTo(hx,      cy + h*0.10);
+      ctx.lineTo(hx + dy, cy + h*0.10 + dy);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    /* 3. outline each bump (back→front so front fills cover interior arcs) */
+    bd.forEach(function(b, i) {
+      if (i >= 4) {
+        ctx.beginPath(); ctx.arc(b[0],b[1],b[2],0,Math.PI*2);
+        ctx.fillStyle = 'rgba(255,255,253,0.97)'; ctx.fill();
+      }
+      ctx.beginPath(); ctx.arc(b[0],b[1],b[2],0,Math.PI*2);
+      ctx.strokeStyle = 'rgba(36,28,20,0.62)';
+      ctx.lineWidth = 1.8; ctx.lineJoin = 'round';
+      ctx.stroke();
+    });
   }
 
   function drawClouds() {
