@@ -67,6 +67,7 @@
   function resize() {
     W = canvas.width  = window.innerWidth;
     H = canvas.height = window.innerHeight;
+    if (!isLight()) renderBooks();
   }
 
   function isLight() {
@@ -237,56 +238,145 @@
   }
 
   /* ============================================================
-     DARK MODE — STATIC WAVE SNAPSHOT
-     Positions computed analytically at a fixed time; drawn once.
+     DARK MODE — ILLUSTRATED BOOKSHELF
   ============================================================ */
 
-  function renderWaves() {
-    ctx.fillStyle = '#0c0a08';
-    ctx.fillRect(0, 0, W, H);
+  var BOOKSHELF = [
+    { t: 'THE DESIGN OF\nEVERYDAY\nTHINGS',  bg: '#F0E4C8', tc: '#2A1A08', w: 22, hf: 0.56 },
+    { t: 'GOLF',                               bg: '#F5C518', tc: '#000000', w: 42, hf: 0.68 },
+    { t: 'BIOMEDICAL\nENGINEERING',           bg: '#C41E3A', tc: '#FFFFFF', w: 24, hf: 0.60 },
+    { t: 'TAIWAN',                             bg: '#1D4ED8', tc: '#FFFFFF', w: 30, hf: 0.54 },
+    { t: 'JAPAN',                              bg: '#DC2626', tc: '#FFFFFF', w: 28, hf: 0.65 },
+    { t: 'CHINA',                              bg: '#B91C1C', tc: '#FBBF24', w: 28, hf: 0.58 },
+    { t: 'UNITED\nSTATES',                    bg: '#1E3A5F', tc: '#FFFFFF', w: 26, hf: 0.52 },
+    { t: 'HIKING\nNATIONAL\nPARKS',          bg: '#4A7C59', tc: '#FFFFFF', w: 24, hf: 0.64 },
+    { t: 'SKIING',                             bg: '#BAE6FD', tc: '#1E3A5F', w: 26, hf: 0.50 },
+    { t: 'SINGLE-DIGIT\nHANDICAP',           bg: '#166534', tc: '#FFFFFF', w: 22, hf: 0.58 },
+    { t: 'UC DAVIS',                           bg: '#002855', tc: '#CFC493', w: 32, hf: 0.62 },
+    { t: 'BOSTON\nSCIENTIFIC',               bg: '#0F172A', tc: '#60A5FA', w: 26, hf: 0.60 },
+    { t: 'MANDARIN',                           bg: '#F97316', tc: '#FFFFFF', w: 26, hf: 0.54 },
+    { t: 'JAPANESE',                           bg: '#7C3AED', tc: '#FFFFFF', w: 26, hf: 0.62 },
+    { t: 'CLINICAL\nSTUDIES',                 bg: '#0E7490', tc: '#FFFFFF', w: 24, hf: 0.56 },
+    { t: 'MEDICAL\nDEVICES',                  bg: '#1F4A6F', tc: '#FFFFFF', w: 24, hf: 0.52 },
+    { t: 'THE ART\nOF TRAVEL',               bg: '#BE185D', tc: '#FFFFFF', w: 26, hf: 0.58 },
+    { t: 'PHOTO\nALBUM',                      bg: '#1C1917', tc: '#E7E5E4', w: 30, hf: 0.53 },
+    { t: 'DEON',                               bg: '#D97706', tc: '#000000', w: 38, hf: 0.72 },
+    { t: 'GOLF\nARCHITECTURE',               bg: '#78350F', tc: '#FDE68A', w: 24, hf: 0.60 },
+    { t: 'EAST ASIA',                          bg: '#BE123C', tc: '#FFFFFF', w: 28, hf: 0.54 },
+    { t: 'TRAIL\nRUNNING',                    bg: '#854D0E', tc: '#FFFFFF', w: 24, hf: 0.56 },
+    { t: 'CARDIOVASCULAR\nDEVICES',          bg: '#7F1D1D', tc: '#FCA5A5', w: 22, hf: 0.62 },
+    { t: 'PACIFIC\nRIM',                      bg: '#164E63', tc: '#7DD3FC', w: 24, hf: 0.54 },
+    { t: 'TYPOGRAPHY',                         bg: '#F5F5F0', tc: '#1C1917', w: 22, hf: 0.58 },
+    { t: 'INTERACTION\nDESIGN',              bg: '#1E1B4B', tc: '#A5B4FC', w: 24, hf: 0.56 },
+    { t: 'BIOMECHANICS',                       bg: '#14532D', tc: '#FFFFFF', w: 24, hf: 0.60 },
+    { t: 'ENGINEERING\nSOLUTIONS',           bg: '#374151', tc: '#F3F4F6', w: 26, hf: 0.56 },
+    { t: 'WINTER\nSPORTS',                    bg: '#E2E8F0', tc: '#1E3A5F', w: 24, hf: 0.52 },
+    { t: 'GLOBE\nTROTTER',                    bg: '#5B21B6', tc: '#FFFFFF', w: 26, hf: 0.58 },
+  ];
+
+  function renderBooks() {
     if (!W || !H) return;
 
-    var T    = 450;   /* frozen time — change to shift the wave pattern */
-    var cols = Math.ceil(W / WAVE.xGap) + 2;
-    var rows = Math.ceil(H / WAVE.yGap) + 2;
+    /* dark room background */
+    var bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#0a0806');
+    bg.addColorStop(1, '#110e0a');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
 
-    ctx.save();
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth   = 1.0;
-    ctx.globalAlpha = 0.65;
-    ctx.lineCap     = 'round';
-    ctx.lineJoin    = 'round';
+    var shelfY = H * 0.80;
+    var shelfH = Math.max(8, H * 0.018);
 
-    for (var i = 0; i < cols; i++) {
-      /* per-column phase gives every line a unique curve shape */
-      var ph = i * 0.41 + Math.sin(i * 0.67) * 1.6;
+    /* floor */
+    ctx.fillStyle = '#080605';
+    ctx.fillRect(0, shelfY + shelfH, W, H - shelfY - shelfH);
 
-      /* build all points for this vertical line */
-      var pts = [];
-      for (var j = 0; j <= rows; j++) {
-        var oy = j * WAVE.yGap;
-        var ox = i * WAVE.xGap;
-        pts.push({
-          x: ox
-            + Math.sin(oy / 90  + T * 0.0125 + ph)        * 40   /* primary S-curve   */
-            + Math.sin(oy / 300 + T * 0.0078 + ph * 0.48) * 16   /* long background swell */
-            + Math.sin(oy / 55  + T * 0.0160 + ph * 1.9)  * 10,  /* tighter ripple    */
-          y: oy,
-        });
-      }
+    /* shelf drop shadow */
+    var ss = ctx.createLinearGradient(0, shelfY + shelfH, 0, shelfY + shelfH + 22);
+    ss.addColorStop(0, 'rgba(0,0,0,0.6)');
+    ss.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = ss; ctx.fillRect(0, shelfY + shelfH, W, 22);
 
-      /* draw smooth curve through midpoints */
-      ctx.beginPath();
-      ctx.moveTo(pts[0].x, pts[0].y);
-      for (var j = 1; j < pts.length - 1; j++) {
-        var xc = (pts[j].x + pts[j + 1].x) * 0.5;
-        var yc = (pts[j].y + pts[j + 1].y) * 0.5;
-        ctx.quadraticCurveTo(pts[j].x, pts[j].y, xc, yc);
-      }
-      ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
-      ctx.stroke();
+    /* wood shelf */
+    var sw = ctx.createLinearGradient(0, shelfY, 0, shelfY + shelfH);
+    sw.addColorStop(0, '#9B7040'); sw.addColorStop(0.6, '#7B5228'); sw.addColorStop(1, '#4A2810');
+    ctx.fillStyle = sw; ctx.fillRect(0, shelfY, W, shelfH);
+    /* grain */
+    ctx.save(); ctx.globalAlpha = 0.10; ctx.strokeStyle = '#3A1E08'; ctx.lineWidth = 1;
+    for (var gi = 8; gi < W; gi += 48 + ((gi * 7) % 32)) {
+      ctx.beginPath(); ctx.moveTo(gi, shelfY); ctx.lineTo(gi + 12, shelfY + shelfH); ctx.stroke();
     }
     ctx.restore();
+
+    /* book spine path helper (rounded top corners only) */
+    function spinePath(bx, by, bw, bh) {
+      var r = Math.min(3, bw * 0.3);
+      ctx.beginPath();
+      ctx.moveTo(bx + r, by);
+      ctx.lineTo(bx + bw - r, by);
+      ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + r);
+      ctx.lineTo(bx + bw, by + bh);
+      ctx.lineTo(bx, by + bh);
+      ctx.lineTo(bx, by + r);
+      ctx.quadraticCurveTo(bx, by, bx + r, by);
+      ctx.closePath();
+    }
+
+    var GAP = 3;
+    var totalW = 0;
+    for (var bi = 0; bi < BOOKSHELF.length; bi++) totalW += BOOKSHELF[bi].w + GAP;
+
+    /* center the tile, then extend left to fill edge */
+    var startX = ((W - totalW) / 2) % totalW;
+    if (startX > 0) startX -= totalW;
+
+    var x = startX, pass = 0;
+    while (x < W + 40) {
+      var b    = BOOKSHELF[pass % BOOKSHELF.length];
+      /* slight height jitter so repeat tiles look different */
+      var jit  = [1, 0.93, 1.05, 0.97, 1.02][pass % 5];
+      var bH   = shelfY * b.hf * jit;
+      var bY   = shelfY - bH;
+
+      /* drop shadow to the right */
+      ctx.fillStyle = 'rgba(0,0,0,0.40)';
+      ctx.fillRect(x + b.w, bY + 8, 5, bH);
+
+      /* book body */
+      spinePath(x, bY, b.w, bH);
+      ctx.fillStyle = b.bg; ctx.fill();
+
+      /* spine sheen left→right */
+      var sg = ctx.createLinearGradient(x, 0, x + b.w, 0);
+      sg.addColorStop(0,    'rgba(255,255,255,0.22)');
+      sg.addColorStop(0.35, 'rgba(255,255,255,0.05)');
+      sg.addColorStop(1,    'rgba(0,0,0,0.20)');
+      spinePath(x, bY, b.w, bH);
+      ctx.fillStyle = sg; ctx.fill();
+
+      /* outline */
+      spinePath(x, bY, b.w, bH);
+      ctx.strokeStyle = 'rgba(0,0,0,0.30)'; ctx.lineWidth = 0.5; ctx.stroke();
+
+      /* rotated title */
+      ctx.save();
+      ctx.translate(x + b.w * 0.5, bY + bH * 0.5);
+      ctx.rotate(-Math.PI * 0.5);
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle    = b.tc;
+      var fs   = Math.max(6, Math.min(b.w * 0.46, 11));
+      ctx.font = '700 ' + fs + 'px "Trebuchet MS", Arial, sans-serif';
+      var lines = b.t.split('\n');
+      var lh    = fs * 1.28;
+      for (var li = 0; li < lines.length; li++) {
+        ctx.fillText(lines[li], 0, (li - (lines.length - 1) * 0.5) * lh);
+      }
+      ctx.restore();
+
+      x += b.w + GAP;
+      pass++;
+    }
   }
 
   /* ============================================================
@@ -305,7 +395,7 @@
       raf = requestAnimationFrame(frame);
     } else {
       raf = null;
-      renderWaves();   /* static — draw once, no loop */
+      renderBooks();   /* static — draw once, no loop */
     }
   }
 
