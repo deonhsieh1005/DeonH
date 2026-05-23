@@ -30,111 +30,196 @@
   }
 
   /* ============================================================
-     LIGHT MODE — LIVE CLOCK
+     LIGHT MODE — FLIP CLOCK
   ============================================================ */
 
+  var FC = {
+    hr:  { cur: -1, prv: 0, flip: 1.0, col: '#5B8FA8' },
+    min: { cur: -1, prv: 0, flip: 1.0, col: '#3A8C7E' },
+    SPD: 0.055,
+  };
+
+  function _p2(n) { return (n < 10 ? '0' : '') + n; }
+
+  function _rr(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  function _panelHalf(txt, x, y, w, h, col, top) {
+    ctx.save();
+    ctx.beginPath();
+    if (top) {
+      ctx.rect(x, y, w, h * 0.5);
+    } else {
+      ctx.rect(x, y + h * 0.5, w, h * 0.5);
+    }
+    ctx.clip();
+    _rr(x, y, w, h, h * 0.06);
+    ctx.fillStyle = col; ctx.fill();
+    /* inner shadow at split line */
+    var sg = ctx.createLinearGradient(0, y + h * 0.5 - (top ? 18 : 0), 0, y + h * 0.5 + (top ? 0 : 18));
+    sg.addColorStop(0, top ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0.35)');
+    sg.addColorStop(1, top ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0)');
+    _rr(x, y, w, h, h * 0.06);
+    ctx.fillStyle = sg; ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.beginPath();
+    if (top) {
+      ctx.rect(x, y, w, h * 0.5);
+    } else {
+      ctx.rect(x, y + h * 0.5, w, h * 0.5);
+    }
+    ctx.clip();
+    ctx.fillStyle = '#E8C05A';
+    ctx.font = '800 ' + (h * 0.62) + 'px "Trebuchet MS", Arial, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(txt, x + w * 0.5, y + h * 0.5);
+    ctx.restore();
+  }
+
+  function _flipPanel(fc, x, y, w, h) {
+    var p   = fc.flip;
+    var mid = y + h * 0.5;
+    var r   = h * 0.06;
+    var darkcol = fc.col;
+
+    /* static bottom half = new value */
+    _panelHalf(_p2(fc.cur), x, y, w, h, darkcol, false);
+
+    if (p < 1.0) {
+      /* static top half = new value (visible when fold reveals it) */
+      _panelHalf(_p2(fc.cur), x, y, w, h, darkcol, true);
+
+      if (p > 0.5) {
+        /* phase 1: old top half collapses downward */
+        var angle1 = (1 - p) * 2;          /* 0→1 as p goes 1→0.5 */
+        var sv1    = Math.cos(angle1 * Math.PI * 0.5);
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x, y, w, mid - y); ctx.clip();
+        ctx.translate(0, mid); ctx.scale(1, sv1); ctx.translate(0, -mid);
+        _panelHalf(_p2(fc.prv), x, y, w, h, darkcol, true);
+        ctx.restore();
+      } else {
+        /* phase 2: new bottom half unfolds downward */
+        var angle2 = p * 2;                /* 1→0 as p goes 0.5→0 */
+        var sv2    = Math.cos((1 - angle2) * Math.PI * 0.5);
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x, mid, w, h * 0.5); ctx.clip();
+        ctx.translate(0, mid); ctx.scale(1, sv2); ctx.translate(0, -mid);
+        _panelHalf(_p2(fc.cur), x, y, w, h, darkcol, false);
+        ctx.restore();
+      }
+    } else {
+      /* idle: show full previous value */
+      _panelHalf(_p2(fc.cur), x, y, w, h, darkcol, true);
+    }
+
+    /* split line */
+    ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x + 4, mid); ctx.lineTo(x + w - 4, mid); ctx.stroke();
+
+    /* panel border */
+    _rr(x, y, w, h, r);
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1; ctx.stroke();
+  }
+
   function drawClock() {
-    /* soft warm wall */
-    ctx.fillStyle = '#EDE8E0';
+    var now  = new Date();
+    var nowH = now.getHours();
+    var nowM = now.getMinutes();
+
+    /* tick hour */
+    if (FC.hr.cur !== nowH) {
+      FC.hr.prv = FC.hr.cur < 0 ? nowH : FC.hr.cur;
+      FC.hr.cur = nowH;
+      FC.hr.flip = FC.hr.cur < 0 ? 0 : 1.0;
+    }
+    /* tick minute */
+    if (FC.min.cur !== nowM) {
+      FC.min.prv = FC.min.cur < 0 ? nowM : FC.min.cur;
+      FC.min.cur = nowM;
+      FC.min.flip = FC.min.cur < 0 ? 0 : 1.0;
+    }
+    /* advance flips */
+    if (FC.hr.flip  > 0) FC.hr.flip  = Math.max(0, FC.hr.flip  - FC.SPD);
+    if (FC.min.flip > 0) FC.min.flip = Math.max(0, FC.min.flip - FC.SPD);
+
+    /* warm brown radial background */
+    var bg = ctx.createRadialGradient(W * 0.5, H * 0.42, 0, W * 0.5, H * 0.5, Math.max(W, H) * 0.72);
+    bg.addColorStop(0,   '#C8A882');
+    bg.addColorStop(0.5, '#A07850');
+    bg.addColorStop(1,   '#5C3A18');
+    ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
-    var cx     = W * 0.5;
-    var cy     = H * 0.5;
-    var outerR = Math.min(W, H) * 0.44;
-    var innerR = outerR * 0.700;
+    /* clock body */
+    var cw = Math.min(W * 0.78, 540);
+    var ch = cw * 0.44;
+    var cx = (W - cw) * 0.5;
+    var cy = (H - ch) * 0.5;
+    var cr = ch * 0.13;
 
-    _clockBezel(cx, cy, outerR, innerR);
-    _clockFace(cx, cy, innerR);
-    _clockNumbers(cx, cy, innerR);
-    _clockHands(cx, cy, innerR);
-  }
+    /* body drop shadow */
+    ctx.shadowColor   = 'rgba(0,0,0,0.55)';
+    ctx.shadowBlur    = 32;
+    ctx.shadowOffsetY = 10;
+    _rr(cx, cy, cw, ch, cr);
+    ctx.fillStyle = '#8B1010'; ctx.fill();
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
 
-  function _clockBezel(cx, cy, outerR, innerR) {
-    /* base red */
-    ctx.beginPath(); ctx.arc(cx, cy, outerR, 0, TAU);
-    ctx.fillStyle = '#CC1212'; ctx.fill();
+    /* body face gradient */
+    var fg = ctx.createLinearGradient(0, cy, 0, cy + ch);
+    fg.addColorStop(0,   '#D42020');
+    fg.addColorStop(0.5, '#B01414');
+    fg.addColorStop(1,   '#7A0A0A');
+    _rr(cx, cy, cw, ch, cr);
+    ctx.fillStyle = fg; ctx.fill();
 
-    /* pillowy highlight — lighter at upper-left, darker at lower-right */
-    var hl = ctx.createRadialGradient(
-      cx - outerR * 0.20, cy - outerR * 0.36, innerR * 0.45,
-      cx, cy, outerR * 1.02
-    );
-    hl.addColorStop(0,    'rgba(255,110,110,0.00)');
-    hl.addColorStop(0.40, 'rgba(255,100,100,0.34)');
-    hl.addColorStop(0.70, 'rgba(200,50,50,0.06)');
-    hl.addColorStop(1,    'rgba(70,0,0,0.42)');
-    ctx.beginPath(); ctx.arc(cx, cy, outerR, 0, TAU);
-    ctx.fillStyle = hl; ctx.fill();
+    /* top highlight sheen */
+    var ths = ctx.createLinearGradient(0, cy, 0, cy + ch * 0.45);
+    ths.addColorStop(0,   'rgba(255,255,255,0.18)');
+    ths.addColorStop(1,   'rgba(255,255,255,0.00)');
+    _rr(cx, cy, cw, ch, cr);
+    ctx.fillStyle = ths; ctx.fill();
 
-    /* inner-edge shadow where bezel meets face */
-    var is = ctx.createRadialGradient(cx, cy, innerR * 0.84, cx, cy, innerR * 1.08);
-    is.addColorStop(0, 'rgba(0,0,0,0)');
-    is.addColorStop(1, 'rgba(0,0,0,0.45)');
-    ctx.beginPath(); ctx.arc(cx, cy, outerR, 0, TAU);
-    ctx.fillStyle = is; ctx.fill();
-  }
+    /* inner bezel */
+    var pad  = ch * 0.095;
+    var ibx  = cx + pad;
+    var iby  = cy + pad;
+    var ibw  = cw - pad * 2;
+    var ibh  = ch - pad * 2;
+    var ibr  = ibh * 0.07;
+    _rr(ibx, iby, ibw, ibh, ibr);
+    ctx.fillStyle = '#2A2A2A'; ctx.fill();
 
-  function _clockFace(cx, cy, r) {
-    /* cream fill */
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU);
-    ctx.fillStyle = '#FDF6EB'; ctx.fill();
+    /* two flip panels */
+    var gap  = ibw * 0.040;
+    var pw   = (ibw - gap * 3) * 0.5;
+    var ph   = ibh - gap * 2;
+    var p1x  = ibx + gap;
+    var p2x  = ibx + gap * 2 + pw;
+    var py   = iby + gap;
 
-    /* graph-paper grid clipped to face */
-    ctx.save();
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.clip();
-    var gs = Math.round(r * 0.088);
-    ctx.strokeStyle = 'rgba(185,35,35,0.16)'; ctx.lineWidth = 0.7;
-    for (var gx = cx % gs; gx < W; gx += gs) {
-      ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke();
-    }
-    for (var gy = cy % gs; gy < H; gy += gs) {
-      ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke();
-    }
-    ctx.restore();
+    _flipPanel(FC.hr,  p1x, py, pw, ph);
+    _flipPanel(FC.min, p2x, py, pw, ph);
 
-    /* subtle face rim */
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU);
-    ctx.strokeStyle = 'rgba(160,25,25,0.22)'; ctx.lineWidth = 1.5; ctx.stroke();
-  }
-
-  function _clockNumbers(cx, cy, r) {
-    var nr = r * 0.78;
-    var fs = r * 0.185;
-    ctx.fillStyle    = '#CC1212';
-    ctx.textAlign    = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font         = '900 ' + fs + 'px "Trebuchet MS", Arial, sans-serif';
-    for (var n = 1; n <= 12; n++) {
-      var a = (n / 12) * TAU - Math.PI * 0.5;
-      ctx.fillText(n, cx + Math.cos(a) * nr, cy + Math.sin(a) * nr);
-    }
-  }
-
-  function _hand(cx, cy, angle, len, wid, tail) {
-    ctx.save();
-    ctx.strokeStyle = '#CC1212'; ctx.lineWidth = wid; ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(cx - Math.cos(angle) * (tail || 0), cy - Math.sin(angle) * (tail || 0));
-    ctx.lineTo(cx + Math.cos(angle) * len,         cy + Math.sin(angle) * len);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  function _clockHands(cx, cy, r) {
-    var now = new Date();
-    var sec = now.getSeconds() + now.getMilliseconds() / 1000;
-    var min = now.getMinutes() + sec / 60;
-    var hrs = (now.getHours() % 12) + min / 60;
-
-    _hand(cx, cy, hrs / 12 * TAU - Math.PI * 0.5, r * 0.50, r * 0.058);
-    _hand(cx, cy, min / 60 * TAU - Math.PI * 0.5, r * 0.70, r * 0.040);
-    _hand(cx, cy, sec / 60 * TAU - Math.PI * 0.5, r * 0.74, r * 0.016, r * 0.20);
-
-    /* center cap */
-    ctx.beginPath(); ctx.arc(cx, cy, r * 0.055, 0, TAU);
-    ctx.fillStyle = '#CC1212'; ctx.fill();
-    ctx.beginPath(); ctx.arc(cx, cy, r * 0.024, 0, TAU);
-    ctx.fillStyle = '#FDF6EB'; ctx.fill();
+    /* colon dots */
+    var dotX = ibx + ibw * 0.5;
+    var dotR = ph * 0.065;
+    ctx.fillStyle = '#E8C05A';
+    ctx.beginPath(); ctx.arc(dotX, py + ph * 0.36, dotR, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(dotX, py + ph * 0.64, dotR, 0, TAU); ctx.fill();
   }
 
   /* ============================================================
