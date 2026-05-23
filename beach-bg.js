@@ -51,20 +51,8 @@
     return arr;
   }());
 
-  /* ---- dark mode wave data ---- */
-  var waveLines = [];
-  var waveMouse = { x: -9999, y: -9999, vx: 0, vy: 0 };
-  var WAVE = {
-    waveSpeedX:    0.0125,
-    waveSpeedY:    0.01,
-    waveAmpX:      40,
-    waveAmpY:      20,
-    friction:      0.9,
-    tension:       0.01,
-    maxCursorMove: 120,
-    xGap:          12,
-    yGap:          36,
-  };
+  /* ---- dark mode wave config ---- */
+  var WAVE = { xGap: 12, yGap: 36 };
 
   function init() {
     canvas = document.createElement('canvas');
@@ -74,20 +62,11 @@
     ctx = canvas.getContext('2d');
     resize();
     window.addEventListener('resize', resize);
-    window.addEventListener('mousemove', function (e) {
-      if (waveMouse.x !== -9999) {
-        waveMouse.vx = e.clientX - waveMouse.x;
-        waveMouse.vy = e.clientY - waveMouse.y;
-      }
-      waveMouse.x = e.clientX;
-      waveMouse.y = e.clientY;
-    });
   }
 
   function resize() {
     W = canvas.width  = window.innerWidth;
     H = canvas.height = window.innerHeight;
-    initWaves();
   }
 
   function isLight() {
@@ -258,84 +237,53 @@
   }
 
   /* ============================================================
-     DARK MODE — WAVE LINES
-     Physics: spring-based point grid, cursor repulsion, sin waves
+     DARK MODE — STATIC WAVE SNAPSHOT
+     Positions computed analytically at a fixed time; drawn once.
   ============================================================ */
 
-  function initWaves() {
+  function renderWaves() {
+    ctx.fillStyle = '#0c0a08';
+    ctx.fillRect(0, 0, W, H);
     if (!W || !H) return;
-    waveLines = [];
+
+    var T    = 450;   /* frozen time — change to shift the wave pattern */
     var cols = Math.ceil(W / WAVE.xGap) + 2;
     var rows = Math.ceil(H / WAVE.yGap) + 2;
-    /* Column-based: waveLines[i] = one vertical line, points run top→bottom */
-    for (var i = 0; i < cols; i++) {
-      var pts = [];
-      for (var j = 0; j < rows; j++) {
-        var ox = i * WAVE.xGap;
-        var oy = j * WAVE.yGap;
-        /* unique phase per column keeps adjacent lines out of sync */
-        var ph = i * 0.41 + Math.sin(i * 0.67) * 1.6;
-        pts.push({ ox: ox, oy: oy, x: ox, y: oy, vx: 0, vy: 0, ph: ph });
-      }
-      waveLines.push(pts);
-    }
-  }
 
-  function updateWaves() {
-    var mx   = waveMouse.x;
-    var my   = waveMouse.y;
-    var maxD = WAVE.maxCursorMove;
-    for (var i = 0; i < waveLines.length; i++) {   /* i = column */
-      var line = waveLines[i];
-      for (var j = 0; j < line.length; j++) {       /* j = row    */
-        var p  = line[j];
-        var ph = p.ph;
-        /* X displacement — oy drives the S-curve shape of each vertical line.
-           Three harmonics: long primary swell + medium ripple + slow deep drift */
-        var tx = p.ox
-          + Math.sin(p.oy / 350 + t * WAVE.waveSpeedX        + ph)        * 44
-          + Math.sin(p.oy / 100 + t * 0.0078                 + ph * 1.9)  * 10
-          + Math.sin(p.oy / 600 + t * 0.0161                 + ph * 0.48) * 16;
-        /* Y displacement — very subtle, keeps the vertical character */
-        var ty = p.oy
-          + Math.sin(p.ox / 320 + t * WAVE.waveSpeedY        + ph * 1.2)  * 5;
-        /* cursor repulsion — push points away from cursor */
-        var dx   = p.x - mx;
-        var dy   = p.y - my;
-        var dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < maxD && dist > 0) {
-          var f = (1 - dist / maxD); f = f * f;
-          tx += (dx / dist) * f * maxD * 0.45;
-          ty += (dy / dist) * f * maxD * 0.45;
-        }
-        /* spring step */
-        p.vx = p.vx * WAVE.friction + (tx - p.x) * WAVE.tension;
-        p.vy = p.vy * WAVE.friction + (ty - p.y) * WAVE.tension;
-        p.x += p.vx;
-        p.y += p.vy;
-      }
-    }
-  }
-
-  function drawWaveLines() {
     ctx.save();
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth   = 1.0;
     ctx.globalAlpha = 0.65;
     ctx.lineCap     = 'round';
     ctx.lineJoin    = 'round';
-    /* One smooth vertical curve per column */
-    for (var i = 0; i < waveLines.length; i++) {
-      var line = waveLines[i];
-      if (line.length < 2) continue;
-      ctx.beginPath();
-      ctx.moveTo(line[0].x, line[0].y);
-      for (var j = 1; j < line.length - 1; j++) {
-        var xc = (line[j].x + line[j + 1].x) * 0.5;
-        var yc = (line[j].y + line[j + 1].y) * 0.5;
-        ctx.quadraticCurveTo(line[j].x, line[j].y, xc, yc);
+
+    for (var i = 0; i < cols; i++) {
+      /* per-column phase gives every line a unique curve shape */
+      var ph = i * 0.41 + Math.sin(i * 0.67) * 1.6;
+
+      /* build all points for this vertical line */
+      var pts = [];
+      for (var j = 0; j <= rows; j++) {
+        var oy = j * WAVE.yGap;
+        var ox = i * WAVE.xGap;
+        pts.push({
+          x: ox
+            + Math.sin(oy / 90  + T * 0.0125 + ph)        * 40   /* primary S-curve   */
+            + Math.sin(oy / 300 + T * 0.0078 + ph * 0.48) * 16   /* long background swell */
+            + Math.sin(oy / 55  + T * 0.0160 + ph * 1.9)  * 10,  /* tighter ripple    */
+          y: oy,
+        });
       }
-      ctx.lineTo(line[line.length - 1].x, line[line.length - 1].y);
+
+      /* draw smooth curve through midpoints */
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (var j = 1; j < pts.length - 1; j++) {
+        var xc = (pts[j].x + pts[j + 1].x) * 0.5;
+        var yc = (pts[j].y + pts[j + 1].y) * 0.5;
+        ctx.quadraticCurveTo(pts[j].x, pts[j].y, xc, yc);
+      }
+      ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
       ctx.stroke();
     }
     ctx.restore();
@@ -353,21 +301,19 @@
       drawSun();
       drawClouds();
       drawGrass();
+      t++;
+      raf = requestAnimationFrame(frame);
     } else {
-      if (waveLines.length === 0) initWaves();
-      ctx.fillStyle = '#0c0a08';
-      ctx.fillRect(0, 0, W, H);
-      updateWaves();
-      drawWaveLines();
+      raf = null;
+      renderWaves();   /* static — draw once, no loop */
     }
-    t++;
-    raf = requestAnimationFrame(frame);
   }
 
   function sync() {
     canvas.style.display = 'block';
     document.body.style.background = 'transparent';
-    if (!raf) frame();
+    if (raf) { cancelAnimationFrame(raf); raf = null; }
+    frame();
   }
 
   init();
