@@ -53,7 +53,7 @@
 
   /* ---- dark mode wave data ---- */
   var waveLines = [];
-  var waveMouse = { x: -9999, y: -9999 };
+  var waveMouse = { x: -9999, y: -9999, vx: 0, vy: 0 };
   var WAVE = {
     waveSpeedX:    0.0125,
     waveSpeedY:    0.01,
@@ -75,6 +75,10 @@
     resize();
     window.addEventListener('resize', resize);
     window.addEventListener('mousemove', function (e) {
+      if (waveMouse.x !== -9999) {
+        waveMouse.vx = e.clientX - waveMouse.x;
+        waveMouse.vy = e.clientY - waveMouse.y;
+      }
       waveMouse.x = e.clientX;
       waveMouse.y = e.clientY;
     });
@@ -263,12 +267,15 @@
     waveLines = [];
     var cols = Math.ceil(W / WAVE.xGap) + 2;
     var rows = Math.ceil(H / WAVE.yGap) + 2;
-    for (var i = 0; i < cols; i++) {
+    // Row-based: each entry in waveLines is one horizontal line
+    for (var j = 0; j < rows; j++) {
       var pts = [];
-      for (var j = 0; j < rows; j++) {
+      for (var i = 0; i < cols; i++) {
         var ox = i * WAVE.xGap;
         var oy = j * WAVE.yGap;
-        pts.push({ ox: ox, oy: oy, x: ox, y: oy, vx: 0, vy: 0 });
+        /* ph: column-based phase so each line has its own timing */
+        var ph = i * 0.38 + Math.sin(i * 0.71) * 1.4;
+        pts.push({ ox: ox, oy: oy, x: ox, y: oy, vx: 0, vy: 0, ph: ph });
       }
       waveLines.push(pts);
     }
@@ -277,22 +284,33 @@
   function updateWaves() {
     var mx   = waveMouse.x;
     var my   = waveMouse.y;
+    var mvx  = waveMouse.vx;
+    var mvy  = waveMouse.vy;
+    // Consume velocity — one-frame impulse so stationary cursor applies no force
+    waveMouse.vx = 0;
+    waveMouse.vy = 0;
     var maxD = WAVE.maxCursorMove;
-    for (var i = 0; i < waveLines.length; i++) {
-      var line = waveLines[i];
-      for (var j = 0; j < line.length; j++) {
-        var p  = line[j];
-        /* wave-displaced rest position */
-        var tx = p.ox + Math.sin(p.oy / 200 + t * WAVE.waveSpeedX) * WAVE.waveAmpX;
-        var ty = p.oy + Math.sin(p.ox / 200 + t * WAVE.waveSpeedY) * WAVE.waveAmpY;
-        /* cursor repulsion */
-        var dx   = p.x - mx;
-        var dy   = p.y - my;
+    for (var j = 0; j < waveLines.length; j++) {       // j = row index
+      var line = waveLines[j];
+      for (var i = 0; i < line.length; i++) {           // i = col index
+        var p  = line[i];
+        /* three overlapping harmonics — different freqs + speeds break the uniform look */
+        var ph = p.ph;
+        var tx = p.ox
+          + Math.cos(t * WAVE.waveSpeedX + j * 0.30 + ph * 0.5)  * 40
+          + Math.cos(t * 0.0083          + j * 0.72 + ph * 2.1)  * 12
+          + Math.cos(t * 0.0192          + j * 0.11 + ph * 0.44) * 18;
+        var ty = p.oy
+          + Math.sin(t * WAVE.waveSpeedY + i * 0.10 + ph * 1.3)  * 20
+          + Math.sin(t * 0.0069          + i * 0.17 + ph)        * 8;
+        /* cursor velocity push */
+        var dx   = mx - p.ox;
+        var dy   = my - p.oy;
         var dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < maxD && dist > 0) {
-          var f = (1 - dist / maxD); f = f * f;
-          tx += (dx / dist) * f * maxD * 0.5;
-          ty += (dy / dist) * f * maxD * 0.5;
+        if (dist < maxD) {
+          var strength = 1 - dist / maxD;
+          p.vx += mvx * strength * 0.35;
+          p.vy += mvy * strength * 0.35;
         }
         /* spring step */
         p.vx = p.vx * WAVE.friction + (tx - p.x) * WAVE.tension;
@@ -309,15 +327,16 @@
     ctx.lineWidth   = 1.0;
     ctx.globalAlpha = 0.65;
     ctx.lineCap     = 'round';
-    for (var i = 0; i < waveLines.length; i++) {
-      var line = waveLines[i];
+    // One smooth horizontal curve per row
+    for (var j = 0; j < waveLines.length; j++) {
+      var line = waveLines[j];
       if (line.length < 2) continue;
       ctx.beginPath();
       ctx.moveTo(line[0].x, line[0].y);
-      for (var j = 1; j < line.length - 1; j++) {
-        var xc = (line[j].x + line[j + 1].x) * 0.5;
-        var yc = (line[j].y + line[j + 1].y) * 0.5;
-        ctx.quadraticCurveTo(line[j].x, line[j].y, xc, yc);
+      for (var i = 1; i < line.length - 1; i++) {
+        var xc = (line[i].x + line[i + 1].x) * 0.5;
+        var yc = (line[i].y + line[i + 1].y) * 0.5;
+        ctx.quadraticCurveTo(line[i].x, line[i].y, xc, yc);
       }
       ctx.lineTo(line[line.length - 1].x, line[line.length - 1].y);
       ctx.stroke();
