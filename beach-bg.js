@@ -4,52 +4,7 @@
   var canvas, ctx, raf, t = 0;
   var W, H;
 
-  /* ---- light mode data ---- */
-  var clouds = [
-    { xRel: 0.04, yFrac: 0.10, w: 148 },
-    { xRel: 0.30, yFrac: 0.06, w: 112 },
-    { xRel: 0.56, yFrac: 0.13, w: 170 },
-    { xRel: 0.76, yFrac: 0.07, w: 130 },
-    { xRel: 0.16, yFrac: 0.28, w:  88 },
-    { xRel: 0.68, yFrac: 0.26, w: 104 },
-  ];
-
-  var MOTE_COLORS = [
-    [255,200, 80], [255,180, 55], [245,220,100],
-    [255,225,140], [255,210, 95], [240,170, 60],
-  ];
-  var motes = (function () {
-    var arr = [];
-    for (var i = 0; i < 160; i++) {
-      var c = MOTE_COLORS[Math.floor(Math.random() * MOTE_COLORS.length)];
-      arr.push({
-        x:     Math.random(),
-        y:     Math.random() * 0.88,
-        r:     Math.random() * 1.7 + 0.35,
-        phase: Math.random() * Math.PI * 2,
-        spd:   Math.random() * 0.018 + 0.004,
-        col:   c,
-        spark: Math.random() < 0.26,
-      });
-    }
-    return arr;
-  }());
-
-  var GRASS_COLORS = ['#3AAD55','#2E9648','#48BB62','#267838','#56C46A','#1E6B34','#4DB85C','#338A42'];
-  var grassBlades = (function () {
-    var arr = [];
-    for (var i = 0; i < 420; i++) {
-      arr.push({
-        x:     Math.random(),
-        hFrac: 0.032 + Math.random() * 0.082,
-        lean:  (Math.random() - 0.5) * 1.1,
-        w:     1.2 + Math.random() * 2.6,
-        phase: Math.random() * Math.PI * 2,
-        col:   GRASS_COLORS[Math.floor(Math.random() * GRASS_COLORS.length)],
-      });
-    }
-    return arr;
-  }());
+  var TAU = Math.PI * 2;
 
   /* ---- dark mode wave config ---- */
   var WAVE = { xGap: 12, yGap: 36 };
@@ -75,166 +30,111 @@
   }
 
   /* ============================================================
-     LIGHT MODE
+     LIGHT MODE — LIVE CLOCK
   ============================================================ */
 
-  function drawSky() {
-    var g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0,    '#4A9CC8');
-    g.addColorStop(0.38, '#8DCBE8');
-    g.addColorStop(0.72, '#C8E8F5');
-    g.addColorStop(1,    '#F4E1AE');
-    ctx.fillStyle = g;
+  function drawClock() {
+    /* soft warm wall */
+    ctx.fillStyle = '#EDE8E0';
     ctx.fillRect(0, 0, W, H);
+
+    var cx     = W * 0.5;
+    var cy     = H * 0.5;
+    var outerR = Math.min(W, H) * 0.44;
+    var innerR = outerR * 0.700;
+
+    _clockBezel(cx, cy, outerR, innerR);
+    _clockFace(cx, cy, innerR);
+    _clockNumbers(cx, cy, innerR);
+    _clockHands(cx, cy, innerR);
   }
 
-  function drawMotes() {
-    motes.forEach(function (m) {
-      var alpha = 0.28 + Math.sin(t * m.spd + m.phase) * 0.22;
-      if (alpha < 0.06) alpha = 0.06;
-      var r  = m.r * (0.8 + Math.sin(t * m.spd * 0.7 + m.phase) * 0.2);
-      var mx = m.x * W, my = m.y * H;
-      var c  = m.col;
-      var glow = ctx.createRadialGradient(mx, my, 0, mx, my, r * 4.5);
-      glow.addColorStop(0, 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + (alpha * 0.45) + ')');
-      glow.addColorStop(1, 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',0)');
-      ctx.fillStyle = glow;
-      ctx.beginPath(); ctx.arc(mx, my, r * 4.5, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + (alpha + 0.15) + ')';
-      ctx.beginPath(); ctx.arc(mx, my, r, 0, Math.PI * 2); ctx.fill();
-      if (m.spark && r > 1.0) {
-        ctx.strokeStyle = 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + (alpha * 0.55) + ')';
-        ctx.lineWidth   = 0.7;
-        var sl = r * 3.5;
-        ctx.beginPath();
-        ctx.moveTo(mx - sl, my); ctx.lineTo(mx + sl, my);
-        ctx.moveTo(mx, my - sl); ctx.lineTo(mx, my + sl);
-        ctx.stroke();
-      }
-    });
+  function _clockBezel(cx, cy, outerR, innerR) {
+    /* base red */
+    ctx.beginPath(); ctx.arc(cx, cy, outerR, 0, TAU);
+    ctx.fillStyle = '#CC1212'; ctx.fill();
+
+    /* pillowy highlight — lighter at upper-left, darker at lower-right */
+    var hl = ctx.createRadialGradient(
+      cx - outerR * 0.20, cy - outerR * 0.36, innerR * 0.45,
+      cx, cy, outerR * 1.02
+    );
+    hl.addColorStop(0,    'rgba(255,110,110,0.00)');
+    hl.addColorStop(0.40, 'rgba(255,100,100,0.34)');
+    hl.addColorStop(0.70, 'rgba(200,50,50,0.06)');
+    hl.addColorStop(1,    'rgba(70,0,0,0.42)');
+    ctx.beginPath(); ctx.arc(cx, cy, outerR, 0, TAU);
+    ctx.fillStyle = hl; ctx.fill();
+
+    /* inner-edge shadow where bezel meets face */
+    var is = ctx.createRadialGradient(cx, cy, innerR * 0.84, cx, cy, innerR * 1.08);
+    is.addColorStop(0, 'rgba(0,0,0,0)');
+    is.addColorStop(1, 'rgba(0,0,0,0.45)');
+    ctx.beginPath(); ctx.arc(cx, cy, outerR, 0, TAU);
+    ctx.fillStyle = is; ctx.fill();
   }
 
-  function drawSun() {
-    var sx = W * 0.74, sy = H * 0.20;
-    var r  = Math.min(W, H) * 0.095;
+  function _clockFace(cx, cy, r) {
+    /* cream fill */
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU);
+    ctx.fillStyle = '#FDF6EB'; ctx.fill();
 
-    var glow = ctx.createRadialGradient(sx, sy, r * 0.4, sx, sy, r * 3.0);
-    glow.addColorStop(0,   'rgba(235,205,40,0.22)');
-    glow.addColorStop(1,   'rgba(235,205,40,0)');
-    ctx.fillStyle = glow;
-    ctx.beginPath(); ctx.arc(sx, sy, r * 3.0, 0, Math.PI * 2); ctx.fill();
-
-    ctx.save(); ctx.translate(sx, sy);
-    ctx.fillStyle = '#EDD030';
-    for (var ri = 0; ri < 12; ri++) {
-      var ra = (ri / 12) * Math.PI * 2 + Math.sin(ri * 2.3) * 0.05;
-      ctx.save(); ctx.rotate(ra);
-      var rd1 = r * 1.20, rd2 = r * 1.65;
-      var hw1 = r * 0.075, hw2 = r * 0.038;
-      ctx.beginPath();
-      ctx.moveTo(-hw1, -rd1);
-      ctx.bezierCurveTo(-hw1*1.2, -(rd1+(rd2-rd1)*0.38), -hw2*1.1, -rd2+r*0.04, 0, -rd2);
-      ctx.bezierCurveTo( hw2*1.1, -rd2+r*0.04,  hw1*1.2, -(rd1+(rd2-rd1)*0.38), hw1, -rd1);
-      ctx.closePath(); ctx.fill();
-      ctx.restore();
-    }
-    ctx.restore();
-
-    function sunPath() {
-      var pts = 48;
-      ctx.beginPath();
-      for (var pi = 0; pi <= pts; pi++) {
-        var pa = (pi / pts) * Math.PI * 2;
-        var wob = 1 + 0.022 * Math.sin(pa*6+1.1)
-                    + 0.014 * Math.sin(pa*11+2.3)
-                    + 0.008 * Math.sin(pa*17+0.9);
-        var px = sx + r * wob * Math.cos(pa);
-        var py = sy + r * wob * Math.sin(pa);
-        if (pi === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-      }
-      ctx.closePath();
-    }
-
-    sunPath();
-    ctx.fillStyle = '#DEBA1A';
-    ctx.fill();
-
+    /* graph-paper grid clipped to face */
     ctx.save();
-    sunPath(); ctx.clip();
-    for (var yi = 0; yi < 30; yi++) {
-      var yp  = sy - r * 0.88 + yi * (r * 1.76 / 29);
-      var xsh = Math.sin(yi * 0.68 + 1.2) * r * 0.07;
-      var alp = 0.08 + Math.abs(Math.sin(yi * 0.54)) * 0.07;
-      ctx.strokeStyle = 'rgba(185,145,5,' + alp + ')';
-      ctx.lineWidth   = 0.9 + Math.abs(Math.sin(yi * 1.1)) * 0.9;
-      ctx.lineCap     = 'round';
-      ctx.beginPath();
-      ctx.moveTo(sx - r*0.90 + xsh, yp + Math.sin(yi*0.42)*1.5);
-      ctx.lineTo(sx + r*0.90 + xsh, yp + Math.sin(yi*0.42+0.5)*1.5);
-      ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.clip();
+    var gs = Math.round(r * 0.088);
+    ctx.strokeStyle = 'rgba(185,35,35,0.16)'; ctx.lineWidth = 0.7;
+    for (var gx = cx % gs; gx < W; gx += gs) {
+      ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke();
+    }
+    for (var gy = cy % gs; gy < H; gy += gs) {
+      ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke();
     }
     ctx.restore();
+
+    /* subtle face rim */
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU);
+    ctx.strokeStyle = 'rgba(160,25,25,0.22)'; ctx.lineWidth = 1.5; ctx.stroke();
   }
 
-  function drawCloud(cx, cy, w) {
-    var h  = w * 0.50;
-    var bx = cx;
-    var by = cy + h * 0.50;
-
-    function path() {
-      ctx.beginPath();
-      ctx.moveTo(bx + w*0.02, by);
-      ctx.lineTo(bx + w*0.98, by);
-      ctx.bezierCurveTo(bx+w*1.02, by,        bx+w*1.02, by-h*0.24, bx+w*0.93, by-h*0.30);
-      ctx.bezierCurveTo(bx+w*1.00, by-h*0.55, bx+w*0.82, by-h*0.62, bx+w*0.74, by-h*0.40);
-      ctx.bezierCurveTo(bx+w*0.78, by-h*0.82, bx+w*0.62, by-h*0.88, bx+w*0.56, by-h*0.62);
-      ctx.bezierCurveTo(bx+w*0.60, by-h*1.10, bx+w*0.36, by-h*1.10, bx+w*0.38, by-h*0.66);
-      ctx.bezierCurveTo(bx+w*0.30, by-h*0.90, bx+w*0.16, by-h*0.80, bx+w*0.18, by-h*0.52);
-      ctx.bezierCurveTo(bx+w*0.06, by-h*0.56, bx-w*0.01, by-h*0.35, bx+w*0.02, by-h*0.18);
-      ctx.bezierCurveTo(bx-w*0.01, by-h*0.14, bx-w*0.01, by, bx+w*0.02, by);
-      ctx.closePath();
+  function _clockNumbers(cx, cy, r) {
+    var nr = r * 0.78;
+    var fs = r * 0.185;
+    ctx.fillStyle    = '#CC1212';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font         = '900 ' + fs + 'px "Trebuchet MS", Arial, sans-serif';
+    for (var n = 1; n <= 12; n++) {
+      var a = (n / 12) * TAU - Math.PI * 0.5;
+      ctx.fillText(n, cx + Math.cos(a) * nr, cy + Math.sin(a) * nr);
     }
+  }
 
+  function _hand(cx, cy, angle, len, wid, tail) {
     ctx.save();
-    ctx.translate(0, h * 0.10);
-    path();
-    var sg = ctx.createLinearGradient(cx + w*0.5, by - h*0.2, cx + w*0.5, by + h*0.12);
-    sg.addColorStop(0, 'rgba(150,165,200,0)');
-    sg.addColorStop(1, 'rgba(135,155,195,0.22)');
-    ctx.fillStyle = sg; ctx.fill();
+    ctx.strokeStyle = '#CC1212'; ctx.lineWidth = wid; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cx - Math.cos(angle) * (tail || 0), cy - Math.sin(angle) * (tail || 0));
+    ctx.lineTo(cx + Math.cos(angle) * len,         cy + Math.sin(angle) * len);
+    ctx.stroke();
     ctx.restore();
-
-    path();
-    var g = ctx.createLinearGradient(cx + w*0.5, by - h*1.12, cx + w*0.5, by);
-    g.addColorStop(0,    'rgba(255,255,255,0.97)');
-    g.addColorStop(0.55, 'rgba(244,247,255,0.95)');
-    g.addColorStop(1,    'rgba(212,220,238,0.88)');
-    ctx.fillStyle = g; ctx.fill();
   }
 
-  function drawClouds() {
-    clouds.forEach(function (c) {
-      drawCloud(c.xRel * W, c.yFrac * H, c.w);
-    });
-  }
+  function _clockHands(cx, cy, r) {
+    var now = new Date();
+    var sec = now.getSeconds() + now.getMilliseconds() / 1000;
+    var min = now.getMinutes() + sec / 60;
+    var hrs = (now.getHours() % 12) + min / 60;
 
-  function drawGrass() {
-    ctx.lineCap = 'round';
-    grassBlades.forEach(function (b) {
-      var bx   = b.x * W;
-      var bh   = b.hFrac * H;
-      var lean = b.lean + Math.sin(t * 0.011 + b.phase) * 0.10;
-      var cpx  = bx + lean * bh * 0.38;
-      var cpy  = H  - bh * 0.62;
-      var tx   = bx + lean * bh;
-      var ty   = H  - bh;
-      ctx.strokeStyle = b.col;
-      ctx.lineWidth   = b.w;
-      ctx.beginPath();
-      ctx.moveTo(bx, H);
-      ctx.quadraticCurveTo(cpx, cpy, tx, ty);
-      ctx.stroke();
-    });
+    _hand(cx, cy, hrs / 12 * TAU - Math.PI * 0.5, r * 0.50, r * 0.058);
+    _hand(cx, cy, min / 60 * TAU - Math.PI * 0.5, r * 0.70, r * 0.040);
+    _hand(cx, cy, sec / 60 * TAU - Math.PI * 0.5, r * 0.74, r * 0.016, r * 0.20);
+
+    /* center cap */
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.055, 0, TAU);
+    ctx.fillStyle = '#CC1212'; ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.024, 0, TAU);
+    ctx.fillStyle = '#FDF6EB'; ctx.fill();
   }
 
   /* ============================================================
@@ -371,11 +271,7 @@
   function frame() {
     W = canvas.width; H = canvas.height;
     if (isLight()) {
-      drawSky();
-      drawMotes();
-      drawSun();
-      drawClouds();
-      drawGrass();
+      drawClock();
       t++;
       raf = requestAnimationFrame(frame);
     } else {
