@@ -358,21 +358,6 @@
       spinePath(x, bY, b.w, bH);
       ctx.strokeStyle = 'rgba(0,0,0,0.30)'; ctx.lineWidth = 0.5; ctx.stroke();
 
-      /* rotated title */
-      ctx.save();
-      ctx.translate(x + b.w * 0.5, bY + bH * 0.5);
-      ctx.rotate(-Math.PI * 0.5);
-      ctx.textAlign    = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle    = b.tc;
-      var fs   = Math.max(6, Math.min(b.w * 0.46, 11));
-      ctx.font = '700 ' + fs + 'px "Trebuchet MS", Arial, sans-serif';
-      var lines = b.t.split('\n');
-      var lh    = fs * 1.28;
-      for (var li = 0; li < lines.length; li++) {
-        ctx.fillText(lines[li], 0, (li - (lines.length - 1) * 0.5) * lh);
-      }
-      ctx.restore();
 
       x += b.w + GAP;
       pass++;
